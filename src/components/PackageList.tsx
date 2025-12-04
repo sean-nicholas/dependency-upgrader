@@ -5,9 +5,10 @@ import { Card, CardContent } from "@/components/ui/card";
 
 interface PackageListProps {
   basePath: string;
+  showOnlyVulnerable?: boolean;
 }
 
-export async function PackageList({ basePath }: PackageListProps) {
+export async function PackageList({ basePath, showOnlyVulnerable = false }: PackageListProps) {
   const result = await scanPackages(basePath);
 
   if (!result.success) {
@@ -38,6 +39,6 @@ export async function PackageList({ basePath }: PackageListProps) {
     );
   }
 
-  return <PackageListClient packages={packages} />;
+  return <PackageListClient packages={packages} initialFilter={showOnlyVulnerable} />;
 }
 

@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { useCallback } from "react";
 import { PackageCard } from "./PackageCard";
 import { Button } from "@/components/ui/button";
 import { AlertCircle, CheckCircle2, Filter, FilterX } from "lucide-react";
@@ -8,10 +9,23 @@ import { PackageInfo } from "@/lib/types";
 
 interface PackageListClientProps {
   packages: PackageInfo[];
+  initialFilter?: boolean;
 }
 
-export function PackageListClient({ packages }: PackageListClientProps) {
-  const [showOnlyVulnerable, setShowOnlyVulnerable] = useState(false);
+export function PackageListClient({ packages, initialFilter = false }: PackageListClientProps) {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const showOnlyVulnerable = initialFilter;
+
+  const toggleFilter = useCallback(() => {
+    const params = new URLSearchParams(searchParams.toString());
+    if (showOnlyVulnerable) {
+      params.delete("filter");
+    } else {
+      params.set("filter", "vulnerable");
+    }
+    router.push(`?${params.toString()}`);
+  }, [router, searchParams, showOnlyVulnerable]);
 
   const vulnerableCount = packages.filter(
     (p) => p.isReactVulnerable || p.isNextVulnerable
@@ -38,7 +52,7 @@ export function PackageListClient({ packages }: PackageListClientProps) {
               <Button
                 variant={showOnlyVulnerable ? "default" : "outline"}
                 size="sm"
-                onClick={() => setShowOnlyVulnerable(!showOnlyVulnerable)}
+                onClick={toggleFilter}
                 className="gap-1.5"
               >
                 {showOnlyVulnerable ? (

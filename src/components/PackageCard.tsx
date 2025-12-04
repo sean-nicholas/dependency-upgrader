@@ -1,22 +1,30 @@
 "use client";
 
-import { useState } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { PackageInfo } from "@/lib/types";
-import { upgradePackage, commitAndPush, checkoutDefaultBranch } from "@/lib/actions";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
-  GitBranch,
-  Package,
+  checkoutDefaultBranch,
+  checkoutProdBranch,
+  commitAndPush,
+  openInCursor,
+  upgradePackage,
+} from "@/lib/actions";
+import { PackageInfo } from "@/lib/types";
+import {
   AlertTriangle,
-  CheckCircle,
-  Loader2,
   ArrowUpCircle,
+  CheckCircle,
+  Download,
+  ExternalLink,
+  GitBranch,
   GitCommit,
   Home,
-  Download,
+  Loader2,
+  Package,
+  Rocket,
 } from "lucide-react";
+import { useState } from "react";
 
 interface PackageCardProps {
   packageInfo: PackageInfo;
@@ -26,6 +34,8 @@ export function PackageCard({ packageInfo }: PackageCardProps) {
   const [isUpgrading, setIsUpgrading] = useState(false);
   const [isCommitting, setIsCommitting] = useState(false);
   const [isCheckingOut, setIsCheckingOut] = useState(false);
+  const [isCheckingOutProd, setIsCheckingOutProd] = useState(false);
+  const [isOpeningCursor, setIsOpeningCursor] = useState(false);
   const [wasUpgraded, setWasUpgraded] = useState(false);
   const [message, setMessage] = useState<{
     type: "success" | "error";
@@ -96,6 +106,51 @@ export function PackageCard({ packageInfo }: PackageCardProps) {
     }
   };
 
+  const handleCheckoutProd = async () => {
+    setIsCheckingOutProd(true);
+    setMessage(null);
+
+    try {
+      const result = await checkoutProdBranch(packageInfo);
+      if (result.success) {
+        setMessage({
+          type: "success",
+          text: result.message || "Checked out!",
+        });
+      } else {
+        setMessage({ type: "error", text: result.error || "Checkout failed" });
+      }
+    } catch {
+      setMessage({ type: "error", text: "An unexpected error occurred" });
+    } finally {
+      setIsCheckingOutProd(false);
+    }
+  };
+
+  const isOnProdBranch =
+    packageInfo.gitBranch === "production" || packageInfo.gitBranch === "prod";
+
+  const handleOpenInCursor = async () => {
+    setIsOpeningCursor(true);
+    setMessage(null);
+
+    try {
+      const result = await openInCursor(packageInfo);
+      if (result.success) {
+        setMessage({
+          type: "success",
+          text: result.message || "Opened in Cursor!",
+        });
+      } else {
+        setMessage({ type: "error", text: result.error || "Failed to open" });
+      }
+    } catch {
+      setMessage({ type: "error", text: "An unexpected error occurred" });
+    } finally {
+      setIsOpeningCursor(false);
+    }
+  };
+
   return (
     <Card
       className={`transition-all ${
@@ -111,6 +166,20 @@ export function PackageCard({ packageInfo }: PackageCardProps) {
             <span className="font-mono text-slate-700">
               {packageInfo.relativePath}
             </span>
+            <Button
+              onClick={handleOpenInCursor}
+              disabled={isOpeningCursor}
+              variant="ghost"
+              size="sm"
+              className="h-6 w-6 p-0 text-slate-400 hover:text-slate-600"
+              title="Open in Cursor"
+            >
+              {isOpeningCursor ? (
+                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+              ) : (
+                <ExternalLink className="h-3.5 w-3.5" />
+              )}
+            </Button>
           </CardTitle>
           {packageInfo.gitBranch && (
             <div className="flex items-center gap-2">
@@ -119,34 +188,76 @@ export function PackageCard({ packageInfo }: PackageCardProps) {
                 {packageInfo.gitBranch}
               </Badge>
               {/* Show button if: not on default branch OR on default branch but behind remote */}
-              {packageInfo.defaultBranch && (
-                (packageInfo.gitBranch !== "main" && packageInfo.gitBranch !== "master") ||
-                (packageInfo.commitsBehindDefault !== null && packageInfo.commitsBehindDefault > 0)
-              ) && (
-                <Button
-                  onClick={handleCheckout}
-                  disabled={isUpgrading || isCommitting || isCheckingOut}
-                  variant="outline"
-                  size="sm"
-                  className="h-7 px-2.5 text-xs gap-1.5"
-                >
-                  {isCheckingOut ? (
-                    <Loader2 className="h-3 w-3 animate-spin" />
-                  ) : (packageInfo.gitBranch === "main" || packageInfo.gitBranch === "master") ? (
-                    <Download className="h-3 w-3" />
-                  ) : (
-                    <Home className="h-3 w-3" />
-                  )}
-                  {(packageInfo.gitBranch === "main" || packageInfo.gitBranch === "master") 
-                    ? "Pull" 
-                    : packageInfo.defaultBranch}
-                  {packageInfo.commitsBehindDefault !== null && packageInfo.commitsBehindDefault > 0 && (
-                    <span className="ml-0.5 bg-blue-500 text-white px-1.5 py-0.5 rounded-full text-[10px] font-medium">
-                      +{packageInfo.commitsBehindDefault}
-                    </span>
-                  )}
-                </Button>
-              )}
+              {packageInfo.defaultBranch &&
+                ((packageInfo.gitBranch !== "main" &&
+                  packageInfo.gitBranch !== "master") ||
+                  (packageInfo.commitsBehindDefault !== null &&
+                    packageInfo.commitsBehindDefault > 0)) && (
+                  <Button
+                    onClick={handleCheckout}
+                    disabled={
+                      isUpgrading ||
+                      isCommitting ||
+                      isCheckingOut ||
+                      isCheckingOutProd
+                    }
+                    variant="outline"
+                    size="sm"
+                    className="h-7 px-2.5 text-xs gap-1.5"
+                  >
+                    {isCheckingOut ? (
+                      <Loader2 className="h-3 w-3 animate-spin" />
+                    ) : packageInfo.gitBranch === "main" ||
+                      packageInfo.gitBranch === "master" ? (
+                      <Download className="h-3 w-3" />
+                    ) : (
+                      <Home className="h-3 w-3" />
+                    )}
+                    {packageInfo.gitBranch === "main" ||
+                    packageInfo.gitBranch === "master"
+                      ? "Pull"
+                      : packageInfo.defaultBranch}
+                    {packageInfo.commitsBehindDefault !== null &&
+                      packageInfo.commitsBehindDefault > 0 && (
+                        <span className="ml-0.5 bg-blue-500 text-white px-1.5 py-0.5 rounded-full text-[10px] font-medium">
+                          +{packageInfo.commitsBehindDefault}
+                        </span>
+                      )}
+                  </Button>
+                )}
+              {/* Show prod button if: prod branch exists AND (not on prod branch OR behind remote) */}
+              {packageInfo.prodBranch &&
+                (!isOnProdBranch ||
+                  (packageInfo.commitsBehindProd !== null &&
+                    packageInfo.commitsBehindProd > 0)) && (
+                  <Button
+                    onClick={handleCheckoutProd}
+                    disabled={
+                      isUpgrading ||
+                      isCommitting ||
+                      isCheckingOut ||
+                      isCheckingOutProd
+                    }
+                    variant="outline"
+                    size="sm"
+                    className="h-7 px-2.5 text-xs gap-1.5 border-orange-300 text-orange-700 hover:bg-orange-50"
+                  >
+                    {isCheckingOutProd ? (
+                      <Loader2 className="h-3 w-3 animate-spin" />
+                    ) : isOnProdBranch ? (
+                      <Download className="h-3 w-3" />
+                    ) : (
+                      <Rocket className="h-3 w-3" />
+                    )}
+                    {isOnProdBranch ? "Pull" : packageInfo.prodBranch}
+                    {packageInfo.commitsBehindProd !== null &&
+                      packageInfo.commitsBehindProd > 0 && (
+                        <span className="ml-0.5 bg-orange-500 text-white px-1.5 py-0.5 rounded-full text-[10px] font-medium">
+                          +{packageInfo.commitsBehindProd}
+                        </span>
+                      )}
+                  </Button>
+                )}
             </div>
           )}
         </div>
@@ -157,7 +268,9 @@ export function PackageCard({ packageInfo }: PackageCardProps) {
             <div className="flex items-center gap-2">
               <span className="text-sm text-slate-600">React:</span>
               <Badge
-                variant={packageInfo.isReactVulnerable ? "destructive" : "secondary"}
+                variant={
+                  packageInfo.isReactVulnerable ? "destructive" : "secondary"
+                }
                 className="font-mono"
               >
                 {packageInfo.isReactVulnerable ? (
@@ -173,7 +286,9 @@ export function PackageCard({ packageInfo }: PackageCardProps) {
             <div className="flex items-center gap-2">
               <span className="text-sm text-slate-600">Next.js:</span>
               <Badge
-                variant={packageInfo.isNextVulnerable ? "destructive" : "secondary"}
+                variant={
+                  packageInfo.isNextVulnerable ? "destructive" : "secondary"
+                }
                 className="font-mono"
               >
                 {packageInfo.isNextVulnerable ? (
@@ -244,4 +359,3 @@ export function PackageCard({ packageInfo }: PackageCardProps) {
     </Card>
   );
 }
-

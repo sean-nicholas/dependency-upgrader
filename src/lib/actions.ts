@@ -218,3 +218,76 @@ export async function checkoutDefaultBranch(packageInfo: PackageInfo) {
     };
   }
 }
+
+export async function checkoutProdBranch(packageInfo: PackageInfo) {
+  const dirPath = path.dirname(packageInfo.path);
+
+  try {
+    // Check which prod branch exists (production or prod)
+    let prodBranch: string | null = null;
+
+    try {
+      await execAsync("git rev-parse --verify origin/production", {
+        cwd: dirPath,
+      });
+      prodBranch = "production";
+    } catch {
+      try {
+        await execAsync("git rev-parse --verify origin/prod", { cwd: dirPath });
+        prodBranch = "prod";
+      } catch {
+        return {
+          success: false,
+          error: "Neither 'production' nor 'prod' branch found",
+        };
+      }
+    }
+
+    // Check if local branch exists, if not create it tracking remote
+    try {
+      await execAsync(`git rev-parse --verify ${prodBranch}`, { cwd: dirPath });
+      // Local branch exists, checkout and pull
+      await execAsync(`git checkout ${prodBranch}`, { cwd: dirPath });
+    } catch {
+      // Local branch doesn't exist, create it tracking remote
+      await execAsync(`git checkout -b ${prodBranch} origin/${prodBranch}`, {
+        cwd: dirPath,
+      });
+    }
+
+    // Pull latest changes
+    await execAsync("git pull", { cwd: dirPath });
+
+    // Revalidate the page
+    revalidatePath("/");
+
+    return {
+      success: true,
+      message: `Switched to ${prodBranch} and pulled latest changes`,
+    };
+  } catch (error) {
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : "Unknown error",
+    };
+  }
+}
+
+export async function openInCursor(packageInfo: PackageInfo) {
+  const dirPath = path.dirname(packageInfo.path);
+
+  try {
+    // Open the directory in Cursor
+    await execAsync(`cursor "${dirPath}"`, { cwd: dirPath });
+
+    return {
+      success: true,
+      message: `Opened ${dirPath} in Cursor`,
+    };
+  } catch (error) {
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : "Unknown error",
+    };
+  }
+}

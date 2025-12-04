@@ -4,11 +4,12 @@ import { PackageList } from "@/components/PackageList";
 import { Loader2, ShieldAlert } from "lucide-react";
 
 interface PageProps {
-  searchParams: Promise<{ path?: string }>;
+  searchParams: Promise<{ path?: string; filter?: string }>;
 }
 
 export default async function HomePage({ searchParams }: PageProps) {
-  const { path } = await searchParams;
+  const { path, filter } = await searchParams;
+  const showOnlyVulnerable = filter === "vulnerable";
 
   return (
     <main className="min-h-screen bg-gradient-to-b from-slate-50 to-slate-100">
@@ -37,7 +38,7 @@ export default async function HomePage({ searchParams }: PageProps) {
               </div>
             }
           >
-            <PackageList basePath={path} />
+            <PackageList basePath={path} showOnlyVulnerable={showOnlyVulnerable} />
           </Suspense>
         )}
       </div>

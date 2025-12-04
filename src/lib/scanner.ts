@@ -63,6 +63,49 @@ async function getDefaultBranchInfo(
   }
 }
 
+async function getProdBranchInfo(
+  dirPath: string
+): Promise<{ prodBranch: string | null; commitsBehind: number | null }> {
+  try {
+    // Check which prod branch exists on remote (production or prod)
+    let prodBranch: string | null = null;
+
+    try {
+      await execAsync("git rev-parse --verify origin/production", { cwd: dirPath });
+      prodBranch = "production";
+    } catch {
+      try {
+        await execAsync("git rev-parse --verify origin/prod", { cwd: dirPath });
+        prodBranch = "prod";
+      } catch {
+        return { prodBranch: null, commitsBehind: null };
+      }
+    }
+
+    // Count commits behind remote prod branch
+    try {
+      // Check if local branch exists
+      try {
+        await execAsync(`git rev-parse --verify ${prodBranch}`, { cwd: dirPath });
+      } catch {
+        // Local branch doesn't exist, can't count commits behind
+        return { prodBranch, commitsBehind: null };
+      }
+
+      const { stdout } = await execAsync(
+        `git rev-list --count ${prodBranch}..origin/${prodBranch}`,
+        { cwd: dirPath }
+      );
+      const commitsBehind = parseInt(stdout.trim(), 10);
+      return { prodBranch, commitsBehind: isNaN(commitsBehind) ? null : commitsBehind };
+    } catch {
+      return { prodBranch, commitsBehind: null };
+    }
+  } catch {
+    return { prodBranch: null, commitsBehind: null };
+  }
+}
+
 function detectPackageManager(
   dirPath: string
 ): Promise<"npm" | "yarn" | "pnpm" | "bun" | null> {
@@ -148,6 +191,7 @@ async function analyzePackageJson(
   const gitBranch = await getGitBranch(dirPath);
   const packageManager = await detectPackageManager(dirPath);
   const { defaultBranch, commitsBehind } = await getDefaultBranchInfo(dirPath);
+  const { prodBranch, commitsBehind: commitsBehindProd } = await getProdBranchInfo(dirPath);
 
   // Create relative path by removing the basePath prefix
   let relativePath = packageJsonPath;
@@ -164,6 +208,8 @@ async function analyzePackageJson(
     gitBranch,
     defaultBranch,
     commitsBehindDefault: commitsBehind,
+    prodBranch,
+    commitsBehindProd,
     reactVersion,
     nextVersion,
     isReactVulnerable: isReactVulnerable(reactVersion),
