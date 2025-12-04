@@ -133,7 +133,7 @@ export async function upgradePackage(packageInfo: PackageInfo) {
     await execAsync(installCommand, { cwd: dirPath });
 
     // Revalidate the page
-    revalidatePath("/");
+    // revalidatePath("/");
 
     return {
       success: true,

@@ -15,6 +15,7 @@ import {
   ArrowUpCircle,
   GitCommit,
   Home,
+  Download,
 } from "lucide-react";
 
 interface PackageCardProps {
@@ -117,7 +118,11 @@ export function PackageCard({ packageInfo }: PackageCardProps) {
                 <GitBranch className="h-3 w-3 mr-1" />
                 {packageInfo.gitBranch}
               </Badge>
-              {packageInfo.gitBranch !== "main" && packageInfo.gitBranch !== "master" && packageInfo.defaultBranch && (
+              {/* Show button if: not on default branch OR on default branch but behind remote */}
+              {packageInfo.defaultBranch && (
+                (packageInfo.gitBranch !== "main" && packageInfo.gitBranch !== "master") ||
+                (packageInfo.commitsBehindDefault !== null && packageInfo.commitsBehindDefault > 0)
+              ) && (
                 <Button
                   onClick={handleCheckout}
                   disabled={isUpgrading || isCommitting || isCheckingOut}
@@ -127,10 +132,14 @@ export function PackageCard({ packageInfo }: PackageCardProps) {
                 >
                   {isCheckingOut ? (
                     <Loader2 className="h-3 w-3 animate-spin" />
+                  ) : (packageInfo.gitBranch === "main" || packageInfo.gitBranch === "master") ? (
+                    <Download className="h-3 w-3" />
                   ) : (
                     <Home className="h-3 w-3" />
                   )}
-                  {packageInfo.defaultBranch}
+                  {(packageInfo.gitBranch === "main" || packageInfo.gitBranch === "master") 
+                    ? "Pull" 
+                    : packageInfo.defaultBranch}
                   {packageInfo.commitsBehindDefault !== null && packageInfo.commitsBehindDefault > 0 && (
                     <span className="ml-0.5 bg-blue-500 text-white px-1.5 py-0.5 rounded-full text-[10px] font-medium">
                       +{packageInfo.commitsBehindDefault}
