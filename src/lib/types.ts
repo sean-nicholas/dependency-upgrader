@@ -2,6 +2,8 @@ export interface PackageInfo {
   path: string;
   relativePath: string;
   gitBranch: string | null;
+  defaultBranch: string | null;
+  commitsBehindDefault: number | null;
   reactVersion: string | null;
   nextVersion: string | null;
   isReactVulnerable: boolean;

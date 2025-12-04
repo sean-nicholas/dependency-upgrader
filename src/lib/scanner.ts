@@ -20,6 +20,49 @@ async function getGitBranch(dirPath: string): Promise<string | null> {
   }
 }
 
+async function getDefaultBranchInfo(
+  dirPath: string
+): Promise<{ defaultBranch: string | null; commitsBehind: number | null }> {
+  try {
+    // Try to fetch latest info from remote (silent fail if offline)
+    try {
+      await execAsync("git fetch --quiet", { cwd: dirPath, timeout: 5000 });
+    } catch {
+      // Ignore fetch errors (might be offline)
+    }
+
+    // Check which default branch exists
+    let defaultBranch: string | null = null;
+
+    try {
+      await execAsync("git rev-parse --verify main", { cwd: dirPath });
+      defaultBranch = "main";
+    } catch {
+      try {
+        await execAsync("git rev-parse --verify master", { cwd: dirPath });
+        defaultBranch = "master";
+      } catch {
+        return { defaultBranch: null, commitsBehind: null };
+      }
+    }
+
+    // Count commits behind remote
+    try {
+      const { stdout } = await execAsync(
+        `git rev-list --count ${defaultBranch}..origin/${defaultBranch}`,
+        { cwd: dirPath }
+      );
+      const commitsBehind = parseInt(stdout.trim(), 10);
+      return { defaultBranch, commitsBehind: isNaN(commitsBehind) ? null : commitsBehind };
+    } catch {
+      // No remote tracking branch or other error
+      return { defaultBranch, commitsBehind: null };
+    }
+  } catch {
+    return { defaultBranch: null, commitsBehind: null };
+  }
+}
+
 function detectPackageManager(
   dirPath: string
 ): Promise<"npm" | "yarn" | "pnpm" | "bun" | null> {
@@ -104,6 +147,7 @@ async function analyzePackageJson(
 
   const gitBranch = await getGitBranch(dirPath);
   const packageManager = await detectPackageManager(dirPath);
+  const { defaultBranch, commitsBehind } = await getDefaultBranchInfo(dirPath);
 
   // Create relative path by removing the basePath prefix
   let relativePath = packageJsonPath;
@@ -118,6 +162,8 @@ async function analyzePackageJson(
     path: packageJsonPath,
     relativePath,
     gitBranch,
+    defaultBranch,
+    commitsBehindDefault: commitsBehind,
     reactVersion,
     nextVersion,
     isReactVulnerable: isReactVulnerable(reactVersion),

@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { PackageInfo } from "@/lib/types";
-import { upgradePackage, commitAndPush } from "@/lib/actions";
+import { upgradePackage, commitAndPush, checkoutDefaultBranch } from "@/lib/actions";
 import {
   GitBranch,
   Package,
@@ -14,6 +14,7 @@ import {
   Loader2,
   ArrowUpCircle,
   GitCommit,
+  Home,
 } from "lucide-react";
 
 interface PackageCardProps {
@@ -23,6 +24,8 @@ interface PackageCardProps {
 export function PackageCard({ packageInfo }: PackageCardProps) {
   const [isUpgrading, setIsUpgrading] = useState(false);
   const [isCommitting, setIsCommitting] = useState(false);
+  const [isCheckingOut, setIsCheckingOut] = useState(false);
+  const [wasUpgraded, setWasUpgraded] = useState(false);
   const [message, setMessage] = useState<{
     type: "success" | "error";
     text: string;
@@ -39,6 +42,7 @@ export function PackageCard({ packageInfo }: PackageCardProps) {
       const result = await upgradePackage(packageInfo);
       if (result.success) {
         setMessage({ type: "success", text: result.message || "Upgraded!" });
+        setWasUpgraded(true);
       } else {
         setMessage({ type: "error", text: result.error || "Upgrade failed" });
       }
@@ -70,6 +74,27 @@ export function PackageCard({ packageInfo }: PackageCardProps) {
     }
   };
 
+  const handleCheckout = async () => {
+    setIsCheckingOut(true);
+    setMessage(null);
+
+    try {
+      const result = await checkoutDefaultBranch(packageInfo);
+      if (result.success) {
+        setMessage({
+          type: "success",
+          text: result.message || "Checked out!",
+        });
+      } else {
+        setMessage({ type: "error", text: result.error || "Checkout failed" });
+      }
+    } catch {
+      setMessage({ type: "error", text: "An unexpected error occurred" });
+    } finally {
+      setIsCheckingOut(false);
+    }
+  };
+
   return (
     <Card
       className={`transition-all ${
@@ -87,10 +112,33 @@ export function PackageCard({ packageInfo }: PackageCardProps) {
             </span>
           </CardTitle>
           {packageInfo.gitBranch && (
-            <Badge variant="outline" className="font-mono text-xs">
-              <GitBranch className="h-3 w-3 mr-1" />
-              {packageInfo.gitBranch}
-            </Badge>
+            <div className="flex items-center gap-2">
+              <Badge variant="outline" className="font-mono text-xs">
+                <GitBranch className="h-3 w-3 mr-1" />
+                {packageInfo.gitBranch}
+              </Badge>
+              {packageInfo.gitBranch !== "main" && packageInfo.gitBranch !== "master" && packageInfo.defaultBranch && (
+                <Button
+                  onClick={handleCheckout}
+                  disabled={isUpgrading || isCommitting || isCheckingOut}
+                  variant="outline"
+                  size="sm"
+                  className="h-7 px-2.5 text-xs gap-1.5"
+                >
+                  {isCheckingOut ? (
+                    <Loader2 className="h-3 w-3 animate-spin" />
+                  ) : (
+                    <Home className="h-3 w-3" />
+                  )}
+                  {packageInfo.defaultBranch}
+                  {packageInfo.commitsBehindDefault !== null && packageInfo.commitsBehindDefault > 0 && (
+                    <span className="ml-0.5 bg-blue-500 text-white px-1.5 py-0.5 rounded-full text-[10px] font-medium">
+                      +{packageInfo.commitsBehindDefault}
+                    </span>
+                  )}
+                </Button>
+              )}
+            </div>
           )}
         </div>
       </CardHeader>
@@ -150,21 +198,23 @@ export function PackageCard({ packageInfo }: PackageCardProps) {
           </div>
         )}
 
-        {isVulnerable && (
+        {(isVulnerable || wasUpgraded) && (
           <div className="flex gap-2">
-            <Button
-              onClick={handleUpgrade}
-              disabled={isUpgrading || isCommitting}
-              size="sm"
-              className="gap-2"
-            >
-              {isUpgrading ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
-              ) : (
-                <ArrowUpCircle className="h-4 w-4" />
-              )}
-              Upgrade Dependencies
-            </Button>
+            {isVulnerable && (
+              <Button
+                onClick={handleUpgrade}
+                disabled={isUpgrading || isCommitting}
+                size="sm"
+                className="gap-2"
+              >
+                {isUpgrading ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <ArrowUpCircle className="h-4 w-4" />
+                )}
+                Upgrade Dependencies
+              </Button>
+            )}
             <Button
               onClick={handleCommit}
               disabled={isUpgrading || isCommitting}

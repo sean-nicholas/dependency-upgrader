@@ -1,13 +1,13 @@
 "use server";
 
-import fs from "fs/promises";
-import path from "path";
 import { exec } from "child_process";
-import { promisify } from "util";
+import fs from "fs/promises";
 import { revalidatePath } from "next/cache";
+import path from "path";
+import { promisify } from "util";
 import { scanForPackages } from "./scanner";
 import { PackageInfo } from "./types";
-import { getSafeReactVersion, getSafeNextVersion } from "./vulnerability";
+import { getSafeNextVersion, getSafeReactVersion } from "./vulnerability";
 
 const execAsync = promisify(exec);
 
@@ -33,13 +33,31 @@ export async function upgradePackage(packageInfo: PackageInfo) {
 
     let hasChanges = false;
 
+    // Helper to build new version preserving original prefix (or no prefix)
+    const buildNewVersion = (
+      originalVersion: string,
+      safeVersion: string
+    ): string => {
+      const prefixMatch = originalVersion.match(/^([\^~])/);
+      // Only add prefix if original had one
+      if (prefixMatch) {
+        return `${prefixMatch[1]}${safeVersion}`;
+      }
+      // No prefix in original = no prefix in new version
+      return safeVersion;
+    };
+
     // Update React if vulnerable
     if (packageInfo.isReactVulnerable && packageInfo.reactVersion) {
       const safeVersion = getSafeReactVersion(packageInfo.reactVersion);
       if (safeVersion) {
-        // Preserve the prefix (^, ~, or nothing)
-        const prefix = packageInfo.reactVersion.match(/^[\^~]/)?.[0] || "";
-        const newVersion = `${prefix}${safeVersion}`;
+        // Get the actual version from package.json to check prefix
+        const actualReactVersion =
+          packageJson.dependencies?.react || packageJson.devDependencies?.react;
+        const newVersion = buildNewVersion(
+          actualReactVersion || packageInfo.reactVersion,
+          safeVersion
+        );
 
         if (packageJson.dependencies?.react) {
           packageJson.dependencies.react = newVersion;
@@ -63,9 +81,13 @@ export async function upgradePackage(packageInfo: PackageInfo) {
     if (packageInfo.isNextVulnerable && packageInfo.nextVersion) {
       const safeVersion = getSafeNextVersion(packageInfo.nextVersion);
       if (safeVersion) {
-        // Preserve the prefix (^, ~, or nothing)
-        const prefix = packageInfo.nextVersion.match(/^[\^~]/)?.[0] || "";
-        const newVersion = `${prefix}${safeVersion}`;
+        // Get the actual version from package.json to check prefix
+        const actualNextVersion =
+          packageJson.dependencies?.next || packageJson.devDependencies?.next;
+        const newVersion = buildNewVersion(
+          actualNextVersion || packageInfo.nextVersion,
+          safeVersion
+        );
 
         if (packageJson.dependencies?.next) {
           packageJson.dependencies.next = newVersion;
@@ -115,7 +137,9 @@ export async function upgradePackage(packageInfo: PackageInfo) {
 
     return {
       success: true,
-      message: `Successfully upgraded and installed with ${packageInfo.packageManager || "npm"}`,
+      message: `Successfully upgraded and installed with ${
+        packageInfo.packageManager || "npm"
+      }`,
     };
   } catch (error) {
     return {
@@ -152,3 +176,45 @@ export async function commitAndPush(packageInfo: PackageInfo) {
   }
 }
 
+export async function checkoutDefaultBranch(packageInfo: PackageInfo) {
+  const dirPath = path.dirname(packageInfo.path);
+
+  try {
+    // Check which default branch exists (main or master)
+    let defaultBranch: string | null = null;
+
+    try {
+      await execAsync("git rev-parse --verify main", { cwd: dirPath });
+      defaultBranch = "main";
+    } catch {
+      try {
+        await execAsync("git rev-parse --verify master", { cwd: dirPath });
+        defaultBranch = "master";
+      } catch {
+        return {
+          success: false,
+          error: "Neither 'main' nor 'master' branch found",
+        };
+      }
+    }
+
+    // Checkout the default branch
+    await execAsync(`git checkout ${defaultBranch}`, { cwd: dirPath });
+
+    // Pull latest changes
+    await execAsync("git pull", { cwd: dirPath });
+
+    // Revalidate the page
+    revalidatePath("/");
+
+    return {
+      success: true,
+      message: `Switched to ${defaultBranch} and pulled latest changes`,
+    };
+  } catch (error) {
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : "Unknown error",
+    };
+  }
+}
