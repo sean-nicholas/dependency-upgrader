@@ -1,5 +1,5 @@
 {
-  "name": "dependency-upgrader",
+  "name": "vuln-dependency-upgrader",
   "version": "0.1.0",
   "private": true,
   "scripts": {

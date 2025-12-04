@@ -13,7 +13,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Dependency Upgrader",
+  title: "Vuln Dependency Upgrader",
   description: "Scan and upgrade vulnerable React and Next.js dependencies",
 };
 

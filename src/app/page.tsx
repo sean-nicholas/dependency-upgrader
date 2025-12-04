@@ -18,7 +18,7 @@ export default async function HomePage({ searchParams }: PageProps) {
           <div className="inline-flex items-center justify-center gap-3 mb-4">
             <ShieldAlert className="h-10 w-10 text-amber-600" />
             <h1 className="text-4xl font-bold tracking-tight text-slate-900">
-              Dependency Upgrader
+              Vuln Dependency Upgrader
             </h1>
           </div>
           <p className="text-slate-600 text-lg max-w-2xl mx-auto">
