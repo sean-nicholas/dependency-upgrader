@@ -1,36 +1,55 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Vuln Dependency Upgrader
+
+> [!NOTE]
+> 🎨 **This project is 100% vibe coded** – created through creative AI collaboration without manually typing a single line of code.
+
+---
+
+## What does this project do?
+
+**Vuln Dependency Upgrader** is a local web tool that scans your projects for vulnerable React and Next.js versions and allows you to upgrade them with a single click.
+
+### Features
+
+- 🔍 **Recursive Scanning** – Searches a directory (up to 4 levels deep) for `package.json` files
+- ⚠️ **Vulnerability Detection** – Identifies vulnerable versions of:
+  - **React 19.x** (safe: 19.0.1, 19.1.2, 19.2.1)
+  - **Next.js 15.x & 16.x** (safe: 15.0.5, 15.1.9, 15.2.6, 15.3.6, 15.4.8, 15.5.7, 16.0.7)
+- 📦 **Package Manager Detection** – Automatically detects npm, yarn, pnpm, or bun
+- 🌿 **Git Status Overview** – Shows for each project:
+  - Current branch
+  - Number of uncommitted files
+  - Commits behind `main`/`master`
+  - Commits behind `production`/`prod`
+- ⬆️ **One-Click Upgrade** – Updates vulnerable dependencies directly from the UI
 
 ## Getting Started
 
-First, run the development server:
-
 ```bash
-npm run dev
-# or
-yarn dev
-# or
+# Install dependencies
+pnpm install
+
+# Start development server
 pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open [http://localhost:3000](http://localhost:3000) in your browser.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+Enter a path to a directory (e.g. `~/dev` or `/Users/your-name/projects`) to scan all projects within it.
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+---
 
-## Learn More
+## Tech Stack
 
-To learn more about Next.js, take a look at the following resources:
+- **Next.js 16** with App Router
+- **React 19**
+- **TypeScript**
+- **Tailwind CSS v4**
+- **shadcn/ui** Components
+- **Lucide Icons**
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+---
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## License
 
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+MIT
